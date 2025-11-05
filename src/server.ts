@@ -1,6 +1,9 @@
 import express, { Request, Response } from 'express';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import dotenv from 'dotenv';
+import { MovieController } from './movie';
+import { UserController } from './user';
+import { ResponseHandler } from './responseHandler';
 
 dotenv.config();
 
@@ -25,14 +28,13 @@ const client = new MongoClient(MONGODB_URI, {
 
 let db: any = null;
 
-// Connect to MongoDB once at startup
+// Connect to MongoDB
 async function connectDB() {
   try {
     await client.connect();
     db = client.db(DB_NAME);
     console.log('Connected to MongoDB Atlas');
 
-    // Optional: Test connection
     await db.command({ ping: 1 });
     console.log('Ping successful!');
   } catch (error) {
@@ -44,36 +46,75 @@ async function connectDB() {
 // Middleware
 app.use(express.json());
 
-// GET: Retrieve all movies
-app.get('/api/movies', async (req: Request, res: Response) => {
-  try {
-    const movies = await db.collection('movies').find({}).toArray();
-    res.status(200).json({
-      success: true,
-      count: movies.length,
-      data: movies,
-    });
-  } catch (error: any) {
-    console.error('Error fetching movies:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch movies',
-      error: error.message,
-    });
-  }
+// Response middleware for consistent response handling
+app.use((req: Request, res: Response, next) => {
+  const originalJson = res.json;
+
+  res.json = function (data: any) {
+    if (data && typeof data === 'object' && 'success' in data) {
+      return originalJson.call(this, data);
+    }
+
+    if (data && data.error) {
+      const errorResponse = ResponseHandler.error(
+        data.code || 'INTERNAL_ERROR',
+        data.message || 'An error occurred',
+        data.details
+      );
+      return originalJson.call(this, errorResponse);
+    }
+
+    const successResponse = ResponseHandler.success(data);
+    return originalJson.call(this, successResponse);
+  };
+
+  next();
 });
+
+// Initialize controllers
+let movieController: MovieController;
+let userController: UserController;
+
+async function initializeControllers() {
+  movieController = new MovieController(db.collection('movies'));
+  userController = new UserController(db.collection('users'));
+
+  // Mount routes
+  app.use('/api/movies', movieController.router);
+  app.use('/api/users', userController.router);
+}
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'OK', message: 'API is running' });
+  res.json(ResponseHandler.success({ status: 'OK' }, 'API is running'));
+});
+
+// 404 handler
+// app.use('/*path', (req: Request, res: Response) => {
+//   res.status(404).json(
+//     ResponseHandler.error('404', 'Endpoint not found')
+//   );
+// });
+
+// Error handling middleware
+app.use((error: any, req: Request, res: Response, next: any) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json(
+    ResponseHandler.error('INTERNAL_ERROR', 'Internal server error', error.message)
+  );
 });
 
 // Start server
 const startServer = async () => {
   await connectDB();
+  await initializeControllers();
+
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`GET all movies: http://localhost:${PORT}/api/movies`);
+    console.log(`API endpoints:`);
+    console.log(`  Movies: http://localhost:${PORT}/api/movies`);
+    console.log(`  Users:  http://localhost:${PORT}/api/users`);
+    console.log(`  Health: http://localhost:${PORT}/health`);
   });
 };
 
