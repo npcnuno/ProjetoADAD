@@ -41,27 +41,33 @@ async function connectDB() {
   }
 }
 
+//Tirar o campo de ano do title
+async function cleanMovieData() {
+  console.log('Extração do campo "year" na coleção movies...');
+  
+  const moviesCursor = await db.collection('movies').find({});  
+  let updateCount = 0;
+  
+  await moviesCursor.forEach(async (movie: any) => {
+
+    if (movie.title && movie.title.endsWith(')')) {
+      const titleLength = movie.title.length;
+      const movieYear = movie.title.substring(titleLength - 5, titleLength - 1);
+      const movieNewTitle = movie.title.substring(0, titleLength - 7).trim(); 
+      
+      await db.collection('movies').updateOne(
+          { _id: movie._id },
+          { $set: { title: movieNewTitle, year: parseInt(movieYear, 10) } }
+      );
+      updateCount++;
+    }
+  });
+
+  console.log(`Extração realizada. ${updateCount} documentos de filmes atualizados.`);
+}
+
 // Middleware
 app.use(express.json());
-
-// GET: Retrieve all movies
-app.get('/api/movies', async (req: Request, res: Response) => {
-  try {
-    const movies = await db.collection('movies').find({}).toArray();
-    res.status(200).json({
-      success: true,
-      count: movies.length,
-      data: movies,
-    });
-  } catch (error: any) {
-    console.error('Error fetching movies:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch movies',
-      error: error.message,
-    });
-  }
-});
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
@@ -71,9 +77,20 @@ app.get('/health', (req: Request, res: Response) => {
 // Start server
 const startServer = async () => {
   await connectDB();
+
+  //Corre o código para limpar o ano do movie title (deixar comentado quando já foi feita a separação)
+  //await cleanMovieData();
+
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`GET all movies: http://localhost:${PORT}/api/movies`);
+    console.log(`GET all movies: http://localhost:${PORT}/api/users`);
+    console.log(`GET movies with more than 5 stars: http://localhost:${PORT}/api/movies/star`);
+    console.log(`GET movies by Year: http://localhost:${PORT}/api/movies/:year`);
+    console.log(`DELETE movies by ID: http://localhost:${PORT}/api/movies/:id`);
+    console.log(`DELETE users by ID: http://localhost:${PORT}/api/users/:id`);
+
+
   });
 };
 
