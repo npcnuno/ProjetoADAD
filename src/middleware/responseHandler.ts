@@ -1,4 +1,3 @@
-// Standardized response interfaces and handler
 export interface BaseResponse {
   success: boolean;
   message: string;

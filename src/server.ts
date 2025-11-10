@@ -1,9 +1,10 @@
 import express, { Request, Response } from 'express';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import dotenv from 'dotenv';
-import { MovieController } from './movie';
-import { UserController } from './user';
-import { ResponseHandler } from './responseHandler';
+import cors from 'cors';
+import { MovieController } from './controllers/movieController';
+import { UserController } from './controllers/userController';
+import { ResponseHandler } from './middleware/responseHandler';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ async function connectDB() {
 }
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 
 // Response middleware for consistent response handling
@@ -80,28 +82,13 @@ async function initializeControllers() {
   userController = new UserController(db.collection('users'));
 
   // Mount routes
-  app.use('/api/movies', movieController.router);
-  app.use('/api/users', userController.router);
+  app.use('/api/v1/movies', movieController.router);
+  app.use('/api/v1/users', userController.router);
 }
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/api/v1/health', (req: Request, res: Response) => {
   res.json(ResponseHandler.success({ status: 'OK' }, 'API is running'));
-});
-
-// 404 handler
-// app.use('/*path', (req: Request, res: Response) => {
-//   res.status(404).json(
-//     ResponseHandler.error('404', 'Endpoint not found')
-//   );
-// });
-
-// Error handling middleware
-app.use((error: any, req: Request, res: Response, next: any) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json(
-    ResponseHandler.error('INTERNAL_ERROR', 'Internal server error', error.message)
-  );
 });
 
 // Start server
@@ -110,22 +97,45 @@ const startServer = async () => {
   await initializeControllers();
 
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`API endpoints:`);
-    console.log(`  Movies: http://localhost:${PORT}/api/movies`);
-    console.log(`  Users:  http://localhost:${PORT}/api/users`);
-    console.log(`  Health: http://localhost:${PORT}/health`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📊 API endpoints:`);
+    console.log(`   Movies: http://localhost:${PORT}/api/v1/movies`);
+    console.log(`   Users:  http://localhost:${PORT}/api/v1/users`);
+    console.log(`   Health: http://localhost:${PORT}/api/v1/health`);
+
+    console.log(`\n📚 Available User Endpoints:`);
+    console.log(`   GET    /api/v1/users - Get all users (with pagination)`);
+    console.log(`   POST   /api/v1/users - Create user(s)`);
+    console.log(`   GET    /api/v1/users/:id - Get user by ID (includes top 3 movies)`);
+    console.log(`   PUT    /api/v1/users/:id - Update user`);
+    console.log(`   DELETE /api/v1/users/:id - Delete user`);
+    console.log(`   POST   /api/v1/users/:id/review/:event_id - Add review to movie`);
+
+    console.log(`\n📚 Available Movie Endpoints:`);
+    console.log(`   GET    /api/v1/movies - Get all movies (with pagination)`);
+    console.log(`   POST   /api/v1/movies - Create movie(s)`);
+    console.log(`   GET    /api/v1/movies/top/:limit - Get top rated movies`);
+    console.log(`   GET    /api/v1/movies/ratings/:order - Get movies by ratings count`);
+    console.log(`   GET    /api/v1/movies/star - Get star movies (5+ five-star reviews)`);
+    console.log(`   GET    /api/v1/movies/year/:year - Get movies by year`);
+    console.log(`   GET    /api/v1/movies/genre/:genre - Get movies by genre`);
+    console.log(`   GET    /api/v1/movies/search/:query - Search movies by title`);
+    console.log(`   GET    /api/v1/movies/user/:userId/reviews - Get user reviews`);
+    console.log(`   GET    /api/v1/movies/stats/summary - Get statistics summary`);
+    console.log(`   GET    /api/v1/movies/:id - Get movie by ID`);
+    console.log(`   PUT    /api/v1/movies/:id - Update movie`);
+    console.log(`   DELETE /api/v1/movies/:id - Delete movie`);
   });
 };
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nClosing MongoDB connection...');
+  console.log('\n📦 Closing MongoDB connection...');
   await client.close();
   process.exit(0);
 });
 
 startServer().catch((err) => {
-  console.error('Server failed to start:', err);
+  console.error('❌ Server failed to start:', err);
   process.exit(1);
 });
