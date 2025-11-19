@@ -13,9 +13,9 @@ import { userSession } from './auth';
 import 'bootstrap/dist/css/bootstrap.css';
 import Navigation from "./components/Navigation";
 import Home from "./pages/Home";
-import Events from "./pages/Events";
+import Movies from "./pages/Movies";
 import Users from "./pages/Users";
-import Event from "./pages/Event";
+import Movie from "./pages/Movie";
 import Footer from './components/Footer';
 
 function App() {
@@ -37,9 +37,9 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/events" element={<Events />} />
+          <Route path="/movies" element={<Movies />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/event/:id" element={<Event />} />
+          <Route path="/movie/:id" element={<Movie />} />
         </Routes>
         <Footer />
       </Router>

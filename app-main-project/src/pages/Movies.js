@@ -2,14 +2,14 @@ import React, {useState, useEffect} from "react";
 import CardGroup from 'react-bootstrap/CardGroup';
 import Row from 'react-bootstrap/Row';
 
-import UserCard from "../components/UserCard";
-  
-export default function App() {
-  let [users, setUser] = useState([]);
+import MovieCard from "../components/MovieCard";
 
-  const getUsers= async () => {
+export default function App() {
+  let [movies, setMovies] = useState([]);
+
+  const getMovies= async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/users', {
+      const response = await fetch('http://localhost:3000/api/v1/movies', {
         method: 'GET',
         headers: {
         'Content-Type': 'application/json'
@@ -18,28 +18,27 @@ export default function App() {
       
       const data = await response.json();
       console.log(data)
-      setUsers(data);
+      setMovies(data);
 
     } catch (error) {
       console.error('Error:', error);
     }
   }
 
-
   useEffect(() => {
-    getUsers();
+    getMovies();
   }, []);
 
   return (
     <div className="container pt-5 pb-5">
-      <h2>Users Page</h2>
-      <CardGroup>
+        <h2>Movies</h2>
+        <CardGroup>
             <Row xs={1} md={2} className="d-flex justify-content-around">
-            {users && users.map && users.map((user) => {
+            {movies && movies.map && movies.map((movie) => {
                 return (
-                    <UserCard 
-                        key={user.id} 
-                        {...user}
+                    <MovieCard 
+                        key={movie.id} 
+                        {...movie}
                     />
                 );
             })}

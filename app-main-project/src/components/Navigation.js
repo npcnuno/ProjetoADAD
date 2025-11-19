@@ -9,9 +9,9 @@ const Navigation = () => {
                     <Navbar.Toggle aria-controls="navbarScroll" data-bs-toggle="collapse" data-bs-target="#navbarScroll" />
                     <Navbar.Collapse id="navbarScroll">
                         <Nav>
-                            <NavLink  eventKey="1" as={Link} to="/">Home</NavLink>
-                            <NavLink  eventKey="2" as={Link} to="/events">Events</NavLink>
-                            <NavLink  eventKey="3" as={Link} to="/users">Users</NavLink>
+                            <NavLink  movieKey="1" as={Link} to="/">Home</NavLink>
+                            <NavLink  movieKey="2" as={Link} to="/movies">Movies</NavLink>
+                            <NavLink  movieKey="3" as={Link} to="/users">Users</NavLink>
                         </Nav>
                     </Navbar.Collapse>
                     {/* {!userSession.isUserSignedIn() ? 
