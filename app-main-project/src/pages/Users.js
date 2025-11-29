@@ -3,28 +3,27 @@ import CardGroup from 'react-bootstrap/CardGroup';
 import Row from 'react-bootstrap/Row';
 
 import UserCard from "../components/UserCard";
-  
+
 export default function App() {
-  let [users, setUser] = useState([]);
-
-  const getUsers= async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/users', {
-        method: 'GET',
-        headers: {
-        'Content-Type': 'application/json'
-        },
-      });
-      
-      const data = await response.json();
-      console.log(data)
-      setUsers(data);
-
-    } catch (error) {
-      console.error('Error:', error);
+  let [users, setUsers] = useState([]);
+  
+    const getUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/v1/users', {
+          method: 'GET',
+          headers: {
+          'Content-Type': 'application/json'
+          },
+        });
+        
+        const data = await response.json();
+        console.log(data)
+        setUsers(data.data);
+  
+      } catch (error) {
+        console.error('Error:', error);
+      }
     }
-  }
-
 
   useEffect(() => {
     getUsers();
@@ -32,8 +31,8 @@ export default function App() {
 
   return (
     <div className="container pt-5 pb-5">
-      <h2>Users Page</h2>
-      <CardGroup>
+        <h2>Users</h2>
+        <CardGroup>
             <Row xs={1} md={2} className="d-flex justify-content-around">
             {users && users.map && users.map((user) => {
                 return (

@@ -18,7 +18,7 @@ export default function App() {
       
       const data = await response.json();
       console.log(data)
-      setEvents(data);
+      setEvents(data.data);
 
     } catch (error) {
       console.error('Error:', error);

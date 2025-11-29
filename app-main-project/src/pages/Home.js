@@ -11,7 +11,7 @@ export default function App() {
           <hr className="my-4" />
           <p>Armazenamento de dados em ambientes distribuidos (ADAD) | Mestrado em Engenharia de Telecomunicações e Informática (METI)</p>
           <p className="lead">
-            <a className="btn btn-primary btn-lg" href="/movies" role="button">Movies &rarr;</a>
+            <a className="btn btn-primary btn-lg" href="/events" role="button">Events &rarr;</a>
             <a className="btn btn-primary btn-lg ms-1" href="/users" role="button">Users &rarr;</a>
           </p>
         </div>
@@ -23,8 +23,8 @@ export default function App() {
             <ul>
               <li>Create /users page</li>
               <li>Create /user/:id page</li>
-              <li>Create /movie/:id page</li>
-              <li>Edit MovieCard component</li>
+              <li>Create /event/:id page</li>
+              <li>Edit EventCard component</li>
               <li>Inside /user/:id page create button to delete user from database</li>
               {/* <li>Save a digital transaction proof of a rating</li> */}
             </ul>
