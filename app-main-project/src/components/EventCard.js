@@ -7,9 +7,9 @@ function EventCard(props) {
       <Card.Body>
         <Card.Title>{props.title}</Card.Title>
         <Card.Text>
-          id: {props.id}
+          id: {props._id}
         </Card.Text>
-        <Button href={"/event/" + props.id} variant="outline-primary">Open Event</Button>
+        <Button href={"/event/" + props._id} variant="outline-primary">Open Event</Button>
       </Card.Body>
     </Card>
   );
