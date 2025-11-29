@@ -13,7 +13,7 @@ const Navigation = () => {
       <Container>
         <Navbar.Brand as={Link} to="/" className="fw-bold">
           <i className="bi bi-film me-2"></i>
-          MovieWeb
+          MovieApp
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
@@ -36,8 +36,8 @@ const Navigation = () => {
             </Nav.Link>
             <Nav.Link 
               as={Link} 
-              to="/events" 
-              active={isActive('/events')}
+              to="/users" 
+              active={isActive('/users')}
               className="fw-semibold"
             >
               Users
