@@ -1,21 +1,16 @@
 import './App.css';
 
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import {
-  AppConfig,
-  UserSession,
-  AuthDetails,
-  showConnect,
-} from "@stacks/connect";
+
 import { useState, useEffect } from "react";
 import { userSession } from './auth';
 
 import 'bootstrap/dist/css/bootstrap.css';
 import Navigation from "./components/Navigation";
 import Home from "./pages/Home";
-import Events from "./pages/Events";
+import Movies from './pages/Movies';
+import Movie from './pages/Movie';
 import Users from "./pages/Users";
-import Event from "./pages/Event";
 import User from "./pages/User";
 import Footer from './components/Footer';
 
@@ -38,9 +33,11 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/events" element={<Events />} />
+          <Route path="/movies" element={<Movies />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/event/:id" element={<Event />} />
+          <Route path='/user/:id' element={<User />} />
+          <Route path='/movie/create' element={<Movie />}/>
+          <Route path="/movie/:id" element={<Movie />} />
         </Routes>
         <Footer />
       </Router>
