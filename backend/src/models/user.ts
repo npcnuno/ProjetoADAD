@@ -9,6 +9,7 @@ export interface UserMovie {
 
 export interface User {
   _id?: Int32;
+  name?: string;
   age?: number;
   occupation?: string[];
   movies?: UserMovie[];
@@ -18,6 +19,7 @@ export type UserDocument = WithId<Document> & User;
 
 export interface UserResponse {
   _id?: Int32;
+  name?: string;
   age?: number;
   occupation?: string[];
   movies?: UserMovie[];
