@@ -36,7 +36,6 @@ function App() {
           <Route path="/movies" element={<Movies />} />
           <Route path="/users" element={<Users />} />
           <Route path='/user/:id' element={<User />} />
-          <Route path='/movie/create' element={<Movie />}/>
           <Route path="/movie/:id" element={<Movie />} />
         </Routes>
         <Footer />

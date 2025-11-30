@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Container, Row, Col, Spinner, Alert, Form, Button, Card } from 'react-bootstrap';
+import { Container, Row, Col, Spinner, Alert, Form, Button, Card} from 'react-bootstrap';
 import UserCard from '../components/UserCard';
+import { Link } from "react-router-dom";
 import CustomPagination from "../components/Pagination";
 import api from '../api/api';
 
@@ -138,8 +139,16 @@ export default function UsersPage() {
     <Container className="py-5">
       <Row className="mb-4 align-items-center">
         <Col>
-          <h1 className="display-6 fw-bold text-primary">Users Collection</h1>
-          <p className="text-muted">Browse all users and their activity</p>
+          <h1 className="display-6 fw-bold text-primary">User Collection</h1>
+          <p className="text-muted">Browse and manage your users</p>
+        </Col>
+        <Col xs="auto">
+          <Link to="/user/new">
+            <Button variant="primary" size="lg" className="px-4">
+              <i className="bi bi-plus-circle me-2"></i>
+              Add New User
+            </Button>
+          </Link>
         </Col>
       </Row>
 
