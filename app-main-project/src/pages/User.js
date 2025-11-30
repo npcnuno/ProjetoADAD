@@ -1,440 +1,228 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { Container, Row, Col, Spinner, Alert, Button, Form, Card } from "react-bootstrap";
-import api from "../api/api";
-import MovieCard from "../components/MovieCard";
-import CustomPagination from "../components/Pagination";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Container, Form, Button, Spinner, Alert, Table } from 'react-bootstrap';
+import Select from 'react-select';
+import api from '../api/api';
 
-const GENRE_OPTIONS = ["All", "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Sci-Fi", "Thriller"];
+// Predefined occupation options for the select dropdown
+const occupationOptions = [
+  { value: 'Academic', label: 'Academic' },
+  { value: 'Artist', label: 'Artist' },
+  { value: 'Clerical', label: 'Clerical' },
+  { value: 'College', label: 'College' },
+  { value: 'Customer Service', label: 'Customer Service' },
+  { value: 'Doctor', label: 'Doctor' },
+  { value: 'Engineer', label: 'Engineer' },
+  { value: 'Executive', label: 'Executive' },
+  { value: 'Farmer', label: 'Farmer' },
+  { value: 'Homemaler', label: 'Homemaler' },
+  { value: 'K-12 Student', label: 'K-12 Student' },
+  { value: 'Lawyer', label: 'Lawyer' },
+  { value: 'Programmer', label: 'Programmer' },
+  { value: 'Retired', label: 'Retired' },
+  { value: 'Sales', label: 'Sales' },
+  { value: 'Scientist', label: 'Scientist' },
+  { value: 'Self-employed', label: 'Self-employed' },
+  { value: 'Technician', label: 'Technician' },
+  { value: 'Tradesman', label: 'Tradesman' },
+  { value: 'Unemployed', label: 'Unemployed' },
+  { value: 'Writer', label: 'Writer' },
+  { value: 'Other', label: 'Other' },
+];
 
-export default function UserPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const getSearch = () => searchParams.get('search') || '';
-  const getGenre = () => searchParams.get('genre') || 'All';
-  const getYear = () => searchParams.get('year') || '';
-  const getPage = () => Number(searchParams.get('page')) || 1;
-  const getLimit = () => Number(searchParams.get('limit')) || 10;
+const genderOption = [
+  { value: 'F', label: 'F' },
+  { value: 'M', label: 'M' },
+  { value: 'Other', label: 'Other' },
+];
 
-  const [movies, setMovies] = useState([]);
-  const [filteredMovies, setFilteredMovies] = useState(null); // This will hold the full client-side filtered list
-  const [loading, setLoading] = useState(true);
+
+const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp * 1000); 
+    return date.toLocaleString();
+};
+
+export default function User() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditing = Boolean(/^-?\d+$/.test(id.trim()));
+
+  const [user, setUser] = useState({ name: '', gender: '', occupation: '', age: '', movies: '' });
+  const [loading, setLoading] = useState(isEditing);
   const [error, setError] = useState(null);
-  const [totalMovies, setTotalMovies] = useState(0);
-  const [searchInputValue, setSearchInputValue] = useState(getSearch());
-  const [mode, setMode] = useState('server'); // 'server' or 'client'
-  const [searchError, setSearchError] = useState('');
-  const searchTimeoutRef = useRef(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // A key to track changes in filters to decide between server/client mode
-  const filterKey = `${getSearch()}_${getGenre()}_${getYear()}`;
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(isEditing);
+  const [reviewsError, setReviewsError] = useState(null);
 
-  // Function to trigger search with minimum character validation
-  const triggerSearch = () => {
-    const trimmedSearch = searchInputValue.trim();
-    
-    // Check if search has at least 2 characters
-    if (trimmedSearch && trimmedSearch.length < 2) {
-      setSearchError('Please enter at least 2 characters to search');
+//Function to fetch movie reviews
+const fetchReviews = useCallback(async () => {
+    if (!isEditing || !id) {
+      setReviewsLoading(false);
       return;
     }
-    
-    setSearchError('');
-    const newParams = new URLSearchParams(searchParams);
-    
-    if (trimmedSearch && trimmedSearch.length >= 2) {
-      newParams.set('search', trimmedSearch);
-    } else {
-      newParams.delete('search');
+    try {
+      setReviewsLoading(true);
+      setReviewsError(null);
+      const response = await api.getUserById(id); 
+      const userData = response.data.data;
+      setReviews(userData.movies || []); 
+    } catch (err) {
+      setReviewsError("Failed to fetch user reviews. " + (err.message || ""));
+      setReviews([]); 
+    } finally {
+      setReviewsLoading(false);
     }
-    newParams.delete('page'); // Reset page when search changes
-    setSearchParams(newParams);
+  }, [isEditing, id]);
+
+//Effect for fetching user data
+useEffect(() => {
+   const getUser = async () => {
+     if (!isEditing) return;
+     try {
+       const response = await api.getUserById(id);
+       const userData = response.data.data;
+       // Map occupation to the format react-select expects
+       setUser({ ...userData, 
+         gender: genderOption.find(opt => opt.value === userData.gender) || null,
+         age: String(userData.age || ''),
+         occupation: userData.occupation.map(g => ({ value: g, label: g })) });
+     } catch (err) {
+       setError(err.message || "Failed to fetch user data.");
+     } finally {
+       setLoading(false);
+     }
+   };
+   getUser();
+ }, [id, isEditing]);
+
+// Effect for fetching user reviews
+useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+ const handleChange = (e) => {
+   const { name, value } = e.target;
+   setUser(prevUser => ({ ...prevUser, [name]: value }));
+ };
+
+  const handleOccupationChange = (selectedOptions) => {
+    setUser(prevUser => ({ ...prevUser, occupation: selectedOptions }));
   };
 
-  // Determine if we should use client-side or server-side rendering
-  useEffect(() => {
-    // Count active standard filters (search, genre, year)
-    const count = () => {
-      let c = 0;
-      if (getSearch()) c++;
-      if (getGenre() !== 'All') c++;
-      if (getYear()) c++;
-      return c;
+  const handleGenderChange = (selectedOption) => {
+    setUser(prevUser => ({ ...prevUser, gender: selectedOption }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
+    // Map selected occupation back to an array of strings for the API
+    const userData = {
+      ...user,
+      age: Number(user.age),
+      gender: user.gender?.value || null,
+      occupation: user.occupation.map(g => g.value),
     };
-    
-    // Use client-side mode when more than one filter is active
-    const isClient = count() > 1;
-    setMode(isClient ? 'client' : 'server');
-  }, [filterKey]);
-
-  // Effect for CLIENT-SIDE data fetching and filtering
-  useEffect(() => {
-    if (mode === 'client') {
-      (async () => {
-        setLoading(true);
-        try {
-          let finalResults = [];
-          
-          // Handle combined filters by fetching from multiple endpoints
-          const fetchPromises = [];
-          const search = getSearch();
-          const genre = getGenre();
-          const year = getYear();
-
-          // Helper function to fetch all pages for a given API call
-          const fetchAllPages = async (apiCall, args) => {
-            let allResults = [];
-            let currentPage = 1;
-            const batchLimit = 100; // Fetch in larger batches for efficiency
-            let total = 0;
-            let response;
-            do {
-              response = await apiCall(...args, currentPage, batchLimit);
-              allResults = [...allResults, ...response.data.data];
-              total = response.data.pagination.total;
-              currentPage++;
-            } while (allResults.length < total);
-            return allResults;
-          };
-
-          // Add API calls to a promise array based on active filters
-          if (search) {
-            fetchPromises.push(fetchAllPages(api.searchMovies, [search]));
-          }
-          if (genre !== 'All') {
-            fetchPromises.push(fetchAllPages(api.getMoviesByGenre, [genre]));
-          }
-          if (year) {
-            fetchPromises.push(fetchAllPages(api.getMoviesByYear, [year]));
-          }
-
-          // Execute all API calls in parallel
-          const results = await Promise.all(fetchPromises);
-
-          // Find the intersection of the fetched results to satisfy all filters
-          if (results.length > 0) {
-            // Start with the first set of results
-            finalResults = results[0];
-            // Iterate through the remaining result sets and filter down
-            for (let i = 1; i < results.length; i++) {
-              const currentResultIds = new Set(results[i].map(movie => movie._id));
-              finalResults = finalResults.filter(movie => currentResultIds.has(movie._id));
-            }
-            
-            // Ensure uniqueness by creating a map of movies by ID
-            const uniqueMoviesMap = new Map();
-            finalResults.forEach(movie => {
-              uniqueMoviesMap.set(movie._id, movie);
-            });
-            
-            // Convert back to array
-            finalResults = Array.from(uniqueMoviesMap.values());
-          }
-          
-          setFilteredMovies(finalResults);
-          setTotalMovies(finalResults.length);
-          setError(null);
-        } catch (err) {
-          setError("Failed to fetch movies. Please try again.");
-          console.error('Error fetching movies:', err);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }
-  }, [mode, filterKey]); // Re-run when mode or any filter changes
-
-  // Effect for SERVER-SIDE data fetching (for single filters or no filters)
-  useEffect(() => {
-    if (mode === 'server') {
-      (async () => {
-        setLoading(true);
-        try {
-          const page = getPage();
-          const limit = getLimit();
-          const search = getSearch();
-          const genre = getGenre();
-          const year = getYear();
-          let response;
-          
-          // Determine which single API call to make
-          if (search) {
-            response = await api.searchMovies(search, page, limit);
-          } else if (genre !== 'All') {
-            response = await api.getMoviesByGenre(genre, page, limit);
-          } else if (year) {
-            response = await api.getMoviesByYear(year, page, limit);
-          } else {
-            response = await api.getMovies(page, limit);
-          }
-          
-          // Ensure uniqueness in server-side results as well
-          const uniqueMoviesMap = new Map();
-          response.data.data.forEach(movie => {
-            uniqueMoviesMap.set(movie._id, movie);
-          });
-          const uniqueMovies = Array.from(uniqueMoviesMap.values());
-          
-          setMovies(uniqueMovies);
-          setTotalMovies(response.data.pagination ? response.data.pagination.total : uniqueMovies.length);
-          setError(null);
-        } catch (err) {
-          setError("Failed to fetch movies. Please try again.");
-          console.error('Error fetching movies:', err);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }
-  }, [searchParams, mode]);
-
-  // Effect for paginating the client-side filtered data
-  useEffect(() => {
-    if (mode === 'client' && filteredMovies) {
-      const page = getPage();
-      const limit = getLimit();
-      const start = (page - 1) * limit;
-      setMovies(filteredMovies.slice(start, start + limit));
-    }
-  }, [searchParams, mode, filteredMovies]);
-
-  // Effect for debounced search input
-  useEffect(() => {
-    // Clear any existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Set a new timeout
-    searchTimeoutRef.current = setTimeout(() => {
-      triggerSearch();
-    }, 200); // Reduced debounce time for better responsiveness
-    
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+    try {
+      if (isEditing) {
+        await api.updateUser(id, userData);
+      } else {
+        await api.createUser(userData);
       }
-    };
-  }, [searchInputValue]);
-
-  const handleDeleteMovie = async (movieId) => {
-    if (window.confirm("Are you sure you want to delete this movie?")) {
-      try {
-        await api.deleteMovie(movieId);
-        // In client mode, invalidate the cache to force a refetch of all filtered data
-        if (mode === 'client') {
-          setFilteredMovies(null); 
-        }
-      } catch (err) {
-        setError("Failed to delete movie. Please try again.");
-        console.error('Error deleting movie:', err);
-      }
+      navigate('/');
+    } catch (err) {
+      setError("Failed to save user. " + (err.response?.data?.message || err.message));
+      setSubmitting(false);
     }
   };
 
-  const handlePageChange = (newPage) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('page', newPage);
-    setSearchParams(newParams);
-  };
-
-  const handleGenreChange = (e) => {
-    const newParams = new URLSearchParams(searchParams);
-    const genre = e.target.value;
-    if (genre === 'All') {
-      newParams.delete('genre');
-    } else {
-      newParams.set('genre', genre);
-    }
-    newParams.delete('page');
-    setSearchParams(newParams);
-  };
-
-  const handleYearChange = (e) => {
-    const newParams = new URLSearchParams(searchParams);
-    const year = e.target.value.trim();
-    if (year) {
-      newParams.set('year', year);
-    } else {
-      newParams.delete('year');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams);
-  };
-
-  const handleItemsPerPageChange = (e) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('limit', e.target.value);
-    newParams.delete('page');
-    setSearchParams(newParams);
-  };
-
-  const clearFilters = () => {
-    setSearchInputValue('');
-    setSearchError('');
-    setSearchParams({});
-  };
-
-  const totalPages = Math.ceil(totalMovies / getLimit());
-  const hasActiveFilters = searchParams.toString() !== '';
-
+  if (loading) {
+    return <Container className="text-center" style={{ marginTop: '50px' }}><Spinner animation="border" /></Container>;
+  }
   return (
-    <Container className="py-5">
-      <Row className="mb-4 align-items-center">
-        <Col>
-          <h1 className="display-6 fw-bold text-primary">Movie Collection</h1>
-          <p className="text-muted">Browse and manage your favorite movies</p>
-        </Col>
-        <Col xs="auto">
-          <Link to="/movie/new">
-            <Button variant="primary" size="lg" className="px-4">
-              <i className="bi bi-plus-circle me-2"></i>
-              Add New Movie
-            </Button>
-          </Link>
-        </Col>
-      </Row>
-      {/* Filters Section */}
-      <Card className="shadow-sm mb-4">
-        <Card.Body>
-          <Row className="g-3 align-items-end">
-            <Col md={4}>
-              <Form.Label className="fw-semibold">Search Movies</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Type at least 2 characters to search..."
-                value={searchInputValue}
-                onChange={(e) => {
-                  setSearchInputValue(e.target.value);
-                  // Clear search error when user starts typing
-                  if (searchError) {
-                    setSearchError('');
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    triggerSearch();
-                  }
-                }}
-                onBlur={() => triggerSearch()}
-                className={searchError ? "border-danger" : "border-primary"}
-                isInvalid={!!searchError}
-              />
-              {searchError && (
-                <Form.Control.Feedback type="invalid" className="d-block">
-                  {searchError}
-                </Form.Control.Feedback>
-              )}
-            </Col>
-            <Col md={2}>
-              <Form.Label className="fw-semibold">Genre</Form.Label>
-              <Form.Select value={getGenre()} onChange={handleGenreChange} className="border-primary">
-                {GENRE_OPTIONS.map(genre => (
-                  <option key={genre} value={genre}>{genre}</option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={2}>
-              <Form.Label className="fw-semibold">Year</Form.Label>
-              <Form.Control
-                type="number"
-                placeholder="Filter by year"
-                value={getYear()}
-                onChange={handleYearChange}
-                className="border-primary"
-              />
-            </Col>
-            <Col md={4} className="text-md-end">
-              <div className="d-flex flex-wrap justify-content-md-end gap-2">
-                {hasActiveFilters && (
-                  <Button variant="outline-secondary" onClick={clearFilters}>
-                    <i className="bi bi-x-circle me-2"></i>
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-      {/* Results Header */}
-      <Row className="mb-3 align-items-center">
-        <Col>
-          {!loading && (
-            <div className="d-flex align-items-center">
-              <span className="text-muted">
-                Showing {movies.length} of {totalMovies} movies
-                {getSearch() && ` for "${getSearch()}"`}
-                {getGenre() !== 'All' && ` in genre "${getGenre()}"`}
-                {getYear() && ` from year "${getYear()}"`}
-              </span>
+    <Container>
+      <h1 className="my-4">{isEditing ? 'Edit User' : 'Create New User'}</h1>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <Form onSubmit={handleSubmit}>
+        <Form.Group className="mb-3" controlId="formName">
+          <Form.Label>Name</Form.Label>
+          <Form.Control type="text" placeholder="Enter user name" name="name" value={user.name} onChange={handleChange} required />
+        </Form.Group>
+        <Form.Group className="mb-3" controlId="formGender">
+          <Form.Label>Gender</Form.Label>
+            <Select
+            name="gender"
+            options={genderOption}
+            className="basic-multi-select"
+            classNamePrefix="select"
+            onChange={handleGenderChange}
+            value={user.gender}
+            placeholder="Select to add gender..."
+            isClearable
+          />
+        </Form.Group>
+        <Form.Group className="mb-3" controlId="formAge">
+          <Form.Label>Age</Form.Label>
+          <Form.Control type="number" placeholder="Enter user age" name="age" value={user.age} onChange={handleChange} required />
+        </Form.Group>
+        <Form.Group className="mb-3" controlId="formOccupations">
+          <Form.Label>Occupation</Form.Label>
+          <Select
+            isMulti
+            name="occupation"
+            options={occupationOptions}
+            className="basic-multi-select"
+            classNamePrefix="select"
+            onChange={handleOccupationChange}
+            value={user.occupation}
+            placeholder="Select or type to add occupation..."
+            isClearable
+          />
+        </Form.Group>
+        
+        <Button variant="primary" type="submit" disabled={submitting}>
+          {submitting ? 'Saving...' : 'Save User'}
+        </Button>
+        <Link to="/"><Button variant="secondary" className="ms-2">Cancel</Button></Link>
+      </Form>
+
+      <hr className="my-5" />
+          <h2 className="mb-4">Rated Movies</h2>
+          {reviewsLoading && <div className="text-center"><Spinner animation="border" size="sm" /> Loading reviews...</div>}
+          {reviewsError && <Alert variant="warning">{reviewsError}</Alert>}
+          {!reviewsLoading && !reviewsError && (
+            <div className="table-responsive">
+              <Table striped bordered hover size="sm">
+                <thead>
+                  <tr>
+                    <th>Movie ID</th>
+                    <th>Rating</th>
+                    <th>Date Rated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviews.length > 0 ? (
+                    reviews.map((review, index) => (
+                      <tr key={index}>
+                        <td>{review.movieid}</td>
+                        <td>{review.rating}</td>
+                        <td>{formatTimestamp(review.timestamp)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" className="text-center">No movies rated by this user yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
             </div>
           )}
-        </Col>
-        <Col xs="auto">
-          <Form.Select
-            value={getLimit()}
-            onChange={handleItemsPerPageChange}
-            style={{ width: 'auto' }}
-            className="border-primary"
-          >
-            <option value={10}>10 per page</option>
-            <option value={20}>20 per page</option>
-            <option value={50}>50 per page</option>
-          </Form.Select>
-        </Col>
-      </Row>
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-          <p className="mt-3 text-muted">Loading movies...</p>
-        </div>
-      )}
-      {/* Error State */}
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          {error}
-        </Alert>
-      )}
-      {/* Movies Grid */}
-      {!loading && !error && (
-        <>
-          <Row xs={1} sm={2} md={3} lg={4} className="g-4">
-            {movies.length > 0 ? (
-              movies.map((movie) => (
-                <Col key={movie._id}>
-                  <MovieCard {...movie} onDelete={handleDeleteMovie} />
-                </Col>
-              ))
-            ) : (
-              <Col xs={12} className="text-center py-5">
-                <div className="d-flex flex-column align-items-center justify-content-center">
-                  <i className="bi bi-film display-1 text-muted"></i>
-                  <h4 className="mt-3 text-muted">No movies found</h4>
-                  <p className="text-muted">Try adjusting your search or filters</p>
-                  <Button variant="primary" onClick={clearFilters}>
-                    Clear Filters
-                  </Button>
-                </div>
-              </Col>
-            )}
-          </Row>
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-5 d-flex justify-content-center">
-              <CustomPagination
-                currentPage={getPage()}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
-          )}
-        </>
-      )}
     </Container>
   );
 }

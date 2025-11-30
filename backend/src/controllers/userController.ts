@@ -315,13 +315,6 @@ export class UserController {
         );
       }
 
-     const movieResult = await this.db.collection('movies') .updateOne(
-        { _id: new Int32(eventId) },
-        { $inc: { reviewsCount: 1 },
-        $push: {reviews: newMovieReview}},
-      );
-
-
       // --- Operation 1: Update the User ---
     const userUpdateResult = await this.userService.findOneAndUpdate(
       { _id: new Int32(userId) },
@@ -334,7 +327,7 @@ export class UserController {
     );
 
     if (!userUpdateResult) {
-      await session.abortTransaction(); // Rollback
+      await session.abortTransaction();
       return res.status(404).json(ResponseHandler.error('NOT_FOUND', 'User not found'));
     }
 
@@ -343,15 +336,26 @@ export class UserController {
       { _id: new Int32(eventId) },
       { 
         $inc: { reviewsCount: 1 },
-        $push: { reviews: newMovieReview } // This adds the user's review to the movie
+        $push: { reviews: newMovieReview } 
       },
-      { session } // Pass the session to this operation too
+      { session } 
     );
 
-      // 3. If both updates were successful, commit the transaction
+    await this.db.collection("movies").updateOne(
+      { _id: new Int32(eventId) },
+      [
+        {
+          $set: {
+            averageScore: { $avg: "$reviews.rating" },
+            reviewsCount: { $size: "$reviews" }
+          }
+        }
+      ],
+      { session }
+    );
+
     await session.commitTransaction();
     
-    // 4. Send a success response
     return res.status(200).json(
       ResponseHandler.success('Review added successfully')
     );

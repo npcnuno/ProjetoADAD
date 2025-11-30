@@ -236,8 +236,6 @@ class UserController {
                 if (!result) {
                     return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found during update'));
                 }
-                const movieResult = yield this.db.collection('movies').updateOne({ _id: new mongodb_1.Int32(eventId) }, { $inc: { reviewsCount: 1 },
-                    $push: { reviews: newMovieReview } });
                 // --- Operation 1: Update the User ---
                 const userUpdateResult = yield this.userService.findOneAndUpdate({ _id: new mongodb_1.Int32(userId) }, {
                     $push: { movies: newUserMovie }
@@ -245,18 +243,23 @@ class UserController {
                     returnDocument: 'after',
                 });
                 if (!userUpdateResult) {
-                    yield session.abortTransaction(); // Rollback
+                    yield session.abortTransaction();
                     return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found'));
                 }
                 // --- Operation 2: Update the Movie ---
                 const movieUpdateResult = yield this.db.collection("movies").updateOne({ _id: new mongodb_1.Int32(eventId) }, {
                     $inc: { reviewsCount: 1 },
-                    $push: { reviews: newMovieReview } // This adds the user's review to the movie
-                }, { session } // Pass the session to this operation too
-                );
-                // 3. If both updates were successful, commit the transaction
+                    $push: { reviews: newMovieReview }
+                }, { session });
+                yield this.db.collection("movies").updateOne({ _id: new mongodb_1.Int32(eventId) }, [
+                    {
+                        $set: {
+                            averageScore: { $avg: "$reviews.rating" },
+                            reviewsCount: { $size: "$reviews" }
+                        }
+                    }
+                ], { session });
                 yield session.commitTransaction();
-                // 4. Send a success response
                 return res.status(200).json(responseHandler_1.ResponseHandler.success('Review added successfully'));
             }
             catch (error) {

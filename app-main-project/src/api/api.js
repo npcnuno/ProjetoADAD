@@ -27,27 +27,28 @@ const api = {
   // Movie Discovery
   getTopMovies: (limit = 10) => 
     axios.get(`${API_URL}movies/top/${limit}`),
+
   getMoviesByRatingsDesc: (page = 1, limit = 10) => 
     axios.get(`${API_URL}movies/ratings/desc`, { 
       params: { page, limit }
     }),
   getMoviesByRatingsAsc: (page = 1, limit = 10) => 
     axios.get(`${API_URL}movies/ratings/asc`, { 
-      params: { page, limit }
+      params: { page, limit}
     }),
   getStarMovies: () => 
     axios.get(`${API_URL}movies/star`),
-  getMoviesByYear: (year, page = 1, limit = 10) => 
+  getMoviesByYear: (year, page = 1, limit = 10,sort = "reviewsCount", order = "desc") => 
     axios.get(`${API_URL}movies/year/${year}`, { 
-      params: { page, limit }
+      params: { page, limit,order,sort }
     }),
-  getMoviesByGenre: (genre, page = 1, limit = 10) => 
+  getMoviesByGenre: (genre, page = 1, limit = 10,sort = "reviewsCount", order = "desc") => 
     axios.get(`${API_URL}movies/genre/${genre}`, { 
-      params: { page, limit }
+      params: { page, limit, sort, order }
     }),
-  searchMovies: (query, page = 1, limit = 10) => 
+  searchMovies: (query, page = 1, limit = 10,sort = "reviewsCount", order = "desc") => 
     axios.get(`${API_URL}movies/search/${query}`, { 
-      params: { page, limit }
+      params: { page, limit,order,sort }
     }),
   getStatsSummary: () => 
     axios.get(`${API_URL}movies/stats/summary`),
