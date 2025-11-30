@@ -30,7 +30,7 @@ const occupationOptions = [
   { value: 'Other', label: 'Other' },
 ];
 
-const genderOption = [
+const genderOptions = [
   { value: 'F', label: 'F' },
   { value: 'M', label: 'M' },
   { value: 'Other', label: 'Other' },
@@ -48,8 +48,9 @@ export default function User() {
   const navigate = useNavigate();
   const isEditing = Boolean(/^-?\d+$/.test(id.trim()));
 
-  const [user, setUser] = useState({ name: '', gender: '', occupation: '', age: '', movies: '' });
+  const [user, setUser] = useState({ name: '', gender: null, occupation: [], age: '', movies: '' });
   const [loading, setLoading] = useState(isEditing);
+  const [deleting, setDeleting] = useState(false);  
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -86,7 +87,7 @@ useEffect(() => {
        const userData = response.data.data;
        // Map occupation to the format react-select expects
        setUser({ ...userData, 
-         gender: genderOption.find(opt => opt.value === userData.gender) || null,
+         gender: genderOptions.find(opt => opt.value === userData.gender) || null,
          age: String(userData.age || ''),
          occupation: userData.occupation.map(g => ({ value: g, label: g })) });
      } catch (err) {
@@ -115,6 +116,25 @@ useEffect(() => {
   const handleGenderChange = (selectedOption) => {
     setUser(prevUser => ({ ...prevUser, gender: selectedOption }));
   };
+
+
+// Handler for deleting a user (kept intact)
+const handleDeleteUser = useCallback(async () => {
+    if (!isEditing || !window.confirm(`Are you sure you want to delete this user?`)) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.deleteUser(id);
+      // Navigate away after successful deletion
+      navigate('/users'); 
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setError(err.response?.data?.message || 'Failed to delete user.');
+      setDeleting(false);
+    }
+  }, [id, isEditing, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -157,11 +177,12 @@ useEffect(() => {
           <Form.Label>Gender</Form.Label>
             <Select
             name="gender"
-            options={genderOption}
+            options={genderOptions}
             className="basic-multi-select"
             classNamePrefix="select"
             onChange={handleGenderChange}
             value={user.gender}
+            isMulti={false}
             placeholder="Select to add gender..."
             isClearable
           />
@@ -184,11 +205,16 @@ useEffect(() => {
             isClearable
           />
         </Form.Group>
-        
+
         <Button variant="primary" type="submit" disabled={submitting}>
           {submitting ? 'Saving...' : 'Save User'}
         </Button>
-        <Link to="/"><Button variant="secondary" className="ms-2">Cancel</Button></Link>
+        {isEditing && (
+        <Button variant="danger" type="button" onClick={handleDeleteUser} disabled={deleting} className="ms-4">
+          {deleting ? 'Deleting...' : 'Delete User'}
+        </Button>
+        )}
+        <Link to="/movies"><Button variant="secondary" className="ms-4">Cancel</Button></Link>
       </Form>
 
       <hr className="my-5" />

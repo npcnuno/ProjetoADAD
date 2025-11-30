@@ -88,7 +88,7 @@ export default function Movie() {
 
     try {
       await api.deleteMovie(id);
-      navigate('/');
+      navigate('/movies');
     } catch (err) {
       setError("Failed to delete movie. " + (err.response?.data?.message || err.message));
       setDeleting(false); 
@@ -139,7 +139,7 @@ export default function Movie() {
           </Button>
         )}
 
-        <Link to="/"><Button variant="secondary" className="ms-2" disabled={submitting || deleting}>Cancel</Button></Link>
+        <Link to="/movies"><Button variant="secondary" className="ms-2" disabled={submitting || deleting}>Cancel</Button></Link>
       </Form>
     </Container>
   );
