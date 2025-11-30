@@ -15,10 +15,11 @@ const databaseService_1 = require("../services/databaseService");
 const responseHandler_1 = require("../middleware/responseHandler");
 const mongodb_1 = require("mongodb");
 class UserController {
-    constructor(collection) {
+    constructor(collection, movieColletion) {
         this.router = (0, express_1.Router)();
         this.userService = new databaseService_1.DatabaseService(collection);
         this.initializeRoutes();
+        this.movieColletion = movieColletion;
     }
     initializeRoutes() {
         this.router.get('/', this.getAllUsers.bind(this));
@@ -226,6 +227,7 @@ class UserController {
                 if (!result) {
                     return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found during update'));
                 }
+                this.movieColletion.updateOne({ _id: new mongodb_1.Int32(eventId) }, { $inc: { reviewsCount: 1 } });
                 res.status(201).json(responseHandler_1.ResponseHandler.success({
                     userId,
                     eventId,

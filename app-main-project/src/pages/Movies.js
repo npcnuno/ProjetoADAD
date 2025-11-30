@@ -15,6 +15,7 @@ export default function MoviesPage() {
     searchError,
     hasActiveFilters,
     totalPages,
+    totalMovies,
     setError,
     setSearchError,
     getSearch,
@@ -131,7 +132,7 @@ export default function MoviesPage() {
           {!loading && (
             <div className="d-flex align-items-center">
               <span className="text-muted">
-                Showing {movies.length} of {totalPages * getLimit()} movies
+                Showing {movies.length} of {totalMovies} movies
                 {getSearch() && ` for "${getSearch()}"`}
                 {getGenre() !== 'All' && ` in genre "${getGenre()}"`}
                 {getYear() && ` from year "${getYear()}"`}

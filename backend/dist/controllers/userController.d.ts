@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { Collection } from 'mongodb';
 export declare class UserController {
     router: Router;
     private userService;
-    constructor(collection: any);
+    private movieColletion;
+    constructor(collection: any, movieColletion: Collection);
     private initializeRoutes;
     private getAllUsers;
     private createUsers;

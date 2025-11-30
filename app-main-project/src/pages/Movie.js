@@ -25,6 +25,7 @@ export default function Movie() {
   const [loading, setLoading] = useState(isEditing);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const getMovie = async () => {
@@ -32,7 +33,7 @@ export default function Movie() {
       try {
         const response = await api.getMovieById(id);
         const movieData = response.data.data;
-        // Map genres to the format react-select expects
+
         setMovie({ ...movieData, genres: movieData.genres.map(g => ({ value: g, label: g })) });
       } catch (err) {
         setError(err.message || "Failed to fetch movie data.");
@@ -76,6 +77,24 @@ export default function Movie() {
     }
   };
 
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this movie? This action cannot be undone.");
+    if (!confirmDelete) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      await api.deleteMovie(id);
+      navigate('/');
+    } catch (err) {
+      setError("Failed to delete movie. " + (err.response?.data?.message || err.message));
+      setDeleting(false); 
+    }
+  };
+
   if (loading) {
     return <Container className="text-center" style={{ marginTop: '50px' }}><Spinner animation="border" /></Container>;
   }
@@ -110,10 +129,17 @@ export default function Movie() {
           />
         </Form.Group>
 
-        <Button variant="primary" type="submit" disabled={submitting}>
+        <Button variant="primary" type="submit" disabled={submitting || deleting}>
           {submitting ? 'Saving...' : 'Save Movie'}
         </Button>
-        <Link to="/"><Button variant="secondary" className="ms-2">Cancel</Button></Link>
+        
+        {isEditing && (
+          <Button variant="danger" onClick={handleDelete} disabled={submitting || deleting} className="ms-2">
+            {deleting ? 'Deleting...' : 'Delete Movie'}
+          </Button>
+        )}
+
+        <Link to="/"><Button variant="secondary" className="ms-2" disabled={submitting || deleting}>Cancel</Button></Link>
       </Form>
     </Container>
   );

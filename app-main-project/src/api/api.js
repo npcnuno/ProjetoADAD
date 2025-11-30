@@ -9,9 +9,9 @@ const api = {
     axios.get(`${API_URL}health`),
 
   // Movie Management
-  getMovies: (page = 1, limit = 10) => 
+  getMovies: (page = 1, limit = 10, sort = "reviewsCount", order = "desc") => 
     axios.get(`${API_URL}movies`, { 
-      params: { page, limit }
+      params: { page, limit,order,sort }
     }),
   getMovieById: (id) => 
     axios.get(`${API_URL}movies/${id}`),

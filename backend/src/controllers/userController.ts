@@ -2,16 +2,21 @@ import { Router, Request, Response } from 'express';
 import { DatabaseService } from '../services/databaseService';
 import { ResponseHandler, Pagination, PaginationQuery } from '../middleware/responseHandler';
 import { User, UserResponse, UserMovie, UserDocument } from '../models/user';
-import { Int32 } from 'mongodb';
+import { Collection, Db, Int32 } from 'mongodb';
+import { MovieController } from './movieController';
 
 export class UserController {
   public router: Router;
   private userService: DatabaseService;
+  private movieColletion: Collection;
 
-  constructor(collection: any) {
+
+
+  constructor(collection: any, movieColletion: Collection) {
     this.router = Router();
     this.userService = new DatabaseService(collection);
     this.initializeRoutes();
+    this.movieColletion = movieColletion
   }
 
   private initializeRoutes() {
@@ -284,6 +289,13 @@ export class UserController {
         date: new Date()
       };
 
+      const newMovieReview = {
+        userId: new Int32(userId),
+        rating,
+        timestamp: Math.floor(Date.now() / 1000),
+        date: new Date()
+      }
+
       // Update user with the new movie review
       const result = await this.userService.findOneAndUpdate(
         { _id: new Int32(userId) },
@@ -299,6 +311,14 @@ export class UserController {
         );
       }
 
+     const movieResult = await this.movieColletion.updateOne(
+        { _id: new Int32(eventId) },
+        { $inc: { reviewsCount: 1 },
+        $push: {reviews: newMovieReview}},
+      );
+
+
+      if(movieResult.acknowledged)
       res.status(201).json(
         ResponseHandler.success(
           {
