@@ -9,7 +9,6 @@ const RATING_OPTIONS = ["Default", "Highest First", "Lowest First"];
 export const useMoviesData = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Reverting useCallback from these simple getters. They are cheap to create.
   const getSearch = () => searchParams.get('search') || '';
   const getGenre = () => searchParams.get('genre') || 'All';
   const getYear = () => searchParams.get('year') || '';
@@ -18,7 +17,7 @@ export const useMoviesData = () => {
   const getLimit = () => Number(searchParams.get('limit')) || 10;
 
   const [movies, setMovies] = useState([]);
-  const [filteredMovies, setFilteredMovies] = useState(null);
+  const [filteredMovies, setFilteredMovies] = useState(null); // Used for client-side pagination
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalMovies, setTotalMovies] = useState(0);
@@ -27,7 +26,7 @@ export const useMoviesData = () => {
   const [searchError, setSearchError] = useState('');
   const searchTimeoutRef = useRef(null);
 
-  // This key is a stable string representation of the filters. It's the best dependency.
+  // This key is a stable string representation of the filters.
   const filterKey = `${getSearch()}_${getGenre()}_${getYear()}_${getRatingSort()}`;
 
   const triggerSearch = useCallback(() => {
@@ -50,17 +49,21 @@ export const useMoviesData = () => {
     setSearchParams(newParams);
   }, [searchInputValue, searchParams, setSearchParams]);
 
-  // This effect determines the mode (client or server). It only needs to re-run when the filterKey changes.
+  // *** THE KEY FIX IS HERE ***
+  // This effect determines the mode (client or server).
+  // It only needs to re-run when the filterKey changes.
   useEffect(() => {
     const count = () => {
       let c = 0;
+      // We only count primary filters, NOT the sort filter.
+      // Sorting should be handled by the server and not trigger client-side mode.
       if (getSearch()) c++;
       if (getGenre() !== 'All') c++;
       if (getYear()) c++;
-      if (getRatingSort() !== 'Default') c++;
       return c;
     };
     
+    // Use client-side mode only if there is more than one primary filter.
     const isClient = count() > 1;
     setMode(isClient ? 'client' : 'server');
   }, [filterKey]); // Only depends on the derived filterKey
@@ -71,61 +74,46 @@ export const useMoviesData = () => {
       (async () => {
         setLoading(true);
         try {
-          let finalResults = [];
-          const fetchPromises = [];
           const search = getSearch();
           const genre = getGenre();
           const year = getYear();
           const ratingSort = getRatingSort();
+          
+          const sortBy = "reviewsCount"; 
+          let sortOrder = null;
+          if (ratingSort === 'Highest First') sortOrder = 'desc';
+          else if (ratingSort === 'Lowest First') sortOrder = 'asc';
 
-          const fetchAllPages = async (apiCall, args) => {
+          const fetchAllPages = async (apiCall, ...initialArgs) => {
             let allResults = [];
             let currentPage = 1;
             const batchLimit = 100;
-            let total = 0;
             let response;
             do {
-              response = await apiCall(...args, currentPage, batchLimit);
+              const callArgs = [...initialArgs, currentPage, batchLimit, sortBy, sortOrder];
+              response = await apiCall(...callArgs);
               allResults = [...allResults, ...response.data.data];
-              total = response.data.pagination.total;
               currentPage++;
-            } while (allResults.length < total);
+            } while (response.data.pagination && allResults.length < response.data.pagination.total);
             return allResults;
           };
 
-          let sortParam = null;
-          if (ratingSort === 'Highest First') {
-            sortParam = 'desc';
-          } else if (ratingSort === 'Lowest First') {
-            sortParam = 'asc';
-          }
-
-          fetchPromises.push(fetchAllPages(api.getMovies, [sortParam]));
-          
-          if (search) {
-            fetchPromises.push(fetchAllPages(api.searchMovies, [search]));
-          }
-          if (genre !== 'All') {
-            fetchPromises.push(fetchAllPages(api.getMoviesByGenre, [genre]));
-          }
-          if (year) {
-            fetchPromises.push(fetchAllPages(api.getMoviesByYear, [year]));
-          }
+          const fetchPromises = [];
+          if (search) fetchPromises.push(fetchAllPages(api.searchMovies, search));
+          if (genre !== 'All') fetchPromises.push(fetchAllPages(api.getMoviesByGenre, genre));
+          if (year) fetchPromises.push(fetchAllPages(api.getMoviesByYear, year));
+          fetchPromises.push(fetchAllPages(api.getMovies));
 
           const results = await Promise.all(fetchPromises);
 
-          if (results.length > 0) {
-            finalResults = results[0];
-            for (let i = 1; i < results.length; i++) {
-              const currentResultIds = new Set(results[i].map(movie => movie._id));
-              finalResults = finalResults.filter(movie => currentResultIds.has(movie._id));
-            }
-            const uniqueMoviesMap = new Map();
-            finalResults.forEach(movie => {
-              uniqueMoviesMap.set(movie._id, movie);
-            });
-            finalResults = Array.from(uniqueMoviesMap.values());
+          let finalResults = results[0] || [];
+          for (let i = 1; i < results.length; i++) {
+            const currentResultIds = new Set(results[i].map(movie => movie._id));
+            finalResults = finalResults.filter(movie => currentResultIds.has(movie._id));
           }
+          
+          const uniqueMoviesMap = new Map(finalResults.map(movie => [movie._id, movie]));
+          finalResults = Array.from(uniqueMoviesMap.values());
           
           setFilteredMovies(finalResults);
           setTotalMovies(finalResults.length);
@@ -138,7 +126,7 @@ export const useMoviesData = () => {
         }
       })();
     }
-  }, [mode, filterKey]); // Only depends on mode and filterKey
+  }, [mode, filterKey]);
 
   // Server-side data fetching effect
   useEffect(() => {
@@ -152,31 +140,25 @@ export const useMoviesData = () => {
           const genre = getGenre();
           const year = getYear();
           const ratingSort = getRatingSort();
+          
+          const sortBy = "reviewsCount";
+          let sortOrder = null;
+          if (ratingSort === 'Highest First') sortOrder = 'desc';
+          else if (ratingSort === 'Lowest First') sortOrder = 'asc';
+          
           let response;
           
-          let sortParam = null;
-          if (ratingSort === 'Highest First') {
-            sortParam = 'desc';
-          } else if (ratingSort === 'Lowest First') {
-            sortParam = 'asc';
-          }
-          
-          if (ratingSort !== 'Default') {
-            response = await api.getMovies(page, limit, "reviewsCount", sortParam);
-          } else if (search) {
-            response = await api.searchMovies(search, page, limit, "reviewsCount", sortParam);
+          if (search) {
+            response = await api.searchMovies(search, page, limit, sortBy, sortOrder);
           } else if (genre !== 'All') {
-            response = await api.getMoviesByGenre(genre, page, limit, "reviewsCount", sortParam);
+            response = await api.getMoviesByGenre(genre, page, limit, sortBy, sortOrder);
           } else if (year) {
-            response = await api.getMoviesByYear(year, page, limit, "reviewsCount", sortParam);
+            response = await api.getMoviesByYear(year, page, limit, sortBy, sortOrder);
           } else {
-            response = await api.getMovies(page, limit,"reviewsCount", sortParam);
+            response = await api.getMovies(page, limit, sortBy, sortOrder);
           }
           
-          const uniqueMoviesMap = new Map();
-          response.data.data.forEach(movie => {
-            uniqueMoviesMap.set(movie._id, movie);
-          });
+          const uniqueMoviesMap = new Map(response.data.data.map(movie => [movie._id, movie]));
           const uniqueMovies = Array.from(uniqueMoviesMap.values());
           
           setMovies(uniqueMovies);
@@ -190,7 +172,7 @@ export const useMoviesData = () => {
         }
       })();
     }
-  }, [searchParams, mode]); // Only depends on searchParams and mode
+  }, [searchParams, mode]);
 
   // Client-side pagination effect
   useEffect(() => {
@@ -200,7 +182,7 @@ export const useMoviesData = () => {
       const start = (page - 1) * limit;
       setMovies(filteredMovies.slice(start, start + limit));
     }
-  }, [searchParams, mode, filteredMovies]); // Only depends on searchParams, mode, and filteredMovies
+  }, [searchParams, mode, filteredMovies]);
 
   // Search timeout effect
   useEffect(() => {
@@ -292,7 +274,6 @@ export const useMoviesData = () => {
   const hasActiveFilters = searchParams.toString() !== '';
 
   return {
-    // State
     movies,
     loading,
     error,
@@ -301,16 +282,12 @@ export const useMoviesData = () => {
     hasActiveFilters,
     totalPages,
     totalMovies,
-    
-    // Getters
     getSearch,
     getGenre,
     getYear,
     getRatingSort,
     getPage,
     getLimit,
-    
-    // Actions
     setSearchInputValue,
     setSearchError,
     handleDeleteMovie,
@@ -321,8 +298,6 @@ export const useMoviesData = () => {
     handleItemsPerPageChange,
     clearFilters,
     triggerSearch,
-    
-    // Constants
     GENRE_OPTIONS,
     RATING_OPTIONS
   };
