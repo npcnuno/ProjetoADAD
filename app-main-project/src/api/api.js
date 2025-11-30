@@ -54,7 +54,7 @@ const api = {
     axios.get(`${API_URL}movies/stats/summary`),
 
   // User Management
-  getUsers: (page = 1, limit = 10) => 
+  getUsers: (page = 1, limit = 10, sort = "occupation", order ="desc") => 
     axios.get(`${API_URL}users`, { 
       params: { page, limit }
     }),

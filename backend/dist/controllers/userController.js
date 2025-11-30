@@ -64,7 +64,7 @@ class UserController {
                 let baseId = yield this.userService.getNextId();
                 const usersToInsert = [];
                 for (const user of usersArray) {
-                    const { name, age, occupation, movies } = user;
+                    const { name, age, occupation, movies, gender } = user;
                     if (movies && Array.isArray(movies)) {
                         for (const movie of movies) {
                             const { movieid, rating } = movie;
@@ -76,6 +76,7 @@ class UserController {
                     usersToInsert.push({
                         _id: new mongodb_1.Int32(baseId++),
                         name,
+                        gender,
                         age,
                         occupation: occupation ? (Array.isArray(occupation) ? occupation : [occupation]) : undefined,
                         movies: movies || []
@@ -126,6 +127,7 @@ class UserController {
                 const response = {
                     _id: user._id,
                     name: user.name,
+                    gender: user.gender,
                     age: user.age,
                     occupation: user.occupation,
                     movies: user.movies,
@@ -144,7 +146,7 @@ class UserController {
             try {
                 const userId = new mongodb_1.Int32(parseInt(req.params.id));
                 const updateUser = req.body;
-                const { name, age, occupation, movies } = updateUser;
+                const { name, age, occupation, movies, gender } = updateUser;
                 if (age === undefined && !occupation && !movies && name === undefined) {
                     return res.status(400).json(responseHandler_1.ResponseHandler.error('VALIDATION_ERROR', 'You must provide at least one field to update: age, occupation or movies'));
                 }
@@ -161,6 +163,8 @@ class UserController {
                     updateData.name = name;
                 if (age !== undefined)
                     updateData.age = age;
+                if (gender !== undefined)
+                    updateData.gender = gender;
                 if (occupation) {
                     updateData.occupation = Array.isArray(occupation) ? occupation : [occupation];
                 }

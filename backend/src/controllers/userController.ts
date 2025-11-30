@@ -75,7 +75,7 @@ export class UserController {
       const usersToInsert = [];
 
       for (const user of usersArray) {
-        const {name, age, occupation, movies } = user;
+        const {name, age, occupation, movies, gender } = user;
 
         if (movies && Array.isArray(movies)) {
           for (const movie of movies) {
@@ -91,6 +91,7 @@ export class UserController {
         usersToInsert.push({
           _id: new Int32(baseId++),
           name,
+          gender,
           age,
           occupation: occupation ? (Array.isArray(occupation) ? occupation : [occupation]) : undefined,
           movies: movies || []
@@ -155,6 +156,7 @@ export class UserController {
       const response: UserResponse = {
         _id: user._id,
         name: user.name,
+        gender: user.gender,
         age: user.age,
         occupation: user.occupation,
         movies: user.movies,
@@ -177,7 +179,7 @@ export class UserController {
     try {
       const userId = new Int32(parseInt(req.params.id));
       const updateUser = req.body;
-      const { name, age, occupation, movies } = updateUser;
+      const { name, age, occupation, movies, gender} = updateUser;
 
       if (age === undefined && !occupation && !movies && name === undefined) {
         return res.status(400).json(
@@ -199,6 +201,7 @@ export class UserController {
       const updateData: any = {};
       if(name !== undefined ) updateData.name = name;
       if (age !== undefined) updateData.age = age;
+      if(gender !== undefined) updateData.gender = gender;
       if (occupation) {
         updateData.occupation = Array.isArray(occupation) ? occupation : [occupation];
       }

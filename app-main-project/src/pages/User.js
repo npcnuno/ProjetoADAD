@@ -134,7 +134,7 @@ useEffect(() => {
       } else {
         await api.createUser(userData);
       }
-      navigate('/');
+      navigate('/users');
     } catch (err) {
       setError("Failed to save user. " + (err.response?.data?.message || err.message));
       setSubmitting(false);

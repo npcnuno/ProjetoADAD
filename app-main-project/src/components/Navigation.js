@@ -13,7 +13,7 @@ const Navigation = () => {
       <Container>
         <Navbar.Brand as={Link} to="/" className="fw-bold">
           <i className="bi bi-film me-2"></i>
-          MovieApp
+          MovieWeb
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">

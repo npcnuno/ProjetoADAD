@@ -70,7 +70,7 @@ export default function Movie() {
       } else {
         await api.createMovie(movieData);
       }
-      navigate('/');
+      navigate('/movies');
     } catch (err) {
       setError("Failed to save movie. " + (err.response?.data?.message || err.message));
       setSubmitting(false);
