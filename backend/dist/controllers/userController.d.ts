@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { Collection } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
 export declare class UserController {
     router: Router;
     private userService;
-    private movieColletion;
-    constructor(collection: any, movieColletion: Collection);
+    private db;
+    private mongo;
+    constructor(collection: any, db: Db, mongo: MongoClient);
     private initializeRoutes;
     private getAllUsers;
     private createUsers;

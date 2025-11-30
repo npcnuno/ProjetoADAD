@@ -15,11 +15,12 @@ const databaseService_1 = require("../services/databaseService");
 const responseHandler_1 = require("../middleware/responseHandler");
 const mongodb_1 = require("mongodb");
 class UserController {
-    constructor(collection, movieColletion) {
+    constructor(collection, db, mongo) {
         this.router = (0, express_1.Router)();
         this.userService = new databaseService_1.DatabaseService(collection);
         this.initializeRoutes();
-        this.movieColletion = movieColletion;
+        this.db = db;
+        this.mongo = mongo;
     }
     initializeRoutes() {
         this.router.get('/', this.getAllUsers.bind(this));
@@ -196,6 +197,7 @@ class UserController {
     addReview(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const session = yield this.mongo.startSession(); // Or your client's startSession method
                 const userId = parseInt(req.params.id);
                 const eventId = parseInt(req.params.event_id);
                 const { rating } = req.body;
@@ -213,9 +215,16 @@ class UserController {
                 if (!user) {
                     return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found'));
                 }
+                session.startTransaction();
                 // Add the review to the user's movies array
                 const newUserMovie = {
                     movieid: new mongodb_1.Int32(eventId),
+                    rating,
+                    timestamp: Math.floor(Date.now() / 1000),
+                    date: new Date()
+                };
+                const newMovieReview = {
+                    userId: new mongodb_1.Int32(userId),
                     rating,
                     timestamp: Math.floor(Date.now() / 1000),
                     date: new Date()
@@ -227,14 +236,28 @@ class UserController {
                 if (!result) {
                     return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found during update'));
                 }
-                this.movieColletion.updateOne({ _id: new mongodb_1.Int32(eventId) }, { $inc: { reviewsCount: 1 } });
-                res.status(201).json(responseHandler_1.ResponseHandler.success({
-                    userId,
-                    eventId,
-                    rating,
-                    timestamp: newUserMovie.timestamp,
-                    date: newUserMovie.date
-                }, 'Review added successfully to user'));
+                const movieResult = yield this.db.collection('movies').updateOne({ _id: new mongodb_1.Int32(eventId) }, { $inc: { reviewsCount: 1 },
+                    $push: { reviews: newMovieReview } });
+                // --- Operation 1: Update the User ---
+                const userUpdateResult = yield this.userService.findOneAndUpdate({ _id: new mongodb_1.Int32(userId) }, {
+                    $push: { movies: newUserMovie }
+                }, {
+                    returnDocument: 'after',
+                });
+                if (!userUpdateResult) {
+                    yield session.abortTransaction(); // Rollback
+                    return res.status(404).json(responseHandler_1.ResponseHandler.error('NOT_FOUND', 'User not found'));
+                }
+                // --- Operation 2: Update the Movie ---
+                const movieUpdateResult = yield this.db.collection("movies").updateOne({ _id: new mongodb_1.Int32(eventId) }, {
+                    $inc: { reviewsCount: 1 },
+                    $push: { reviews: newMovieReview } // This adds the user's review to the movie
+                }, { session } // Pass the session to this operation too
+                );
+                // 3. If both updates were successful, commit the transaction
+                yield session.commitTransaction();
+                // 4. Send a success response
+                return res.status(200).json(responseHandler_1.ResponseHandler.success('Review added successfully'));
             }
             catch (error) {
                 console.error('Error adding review:', error);

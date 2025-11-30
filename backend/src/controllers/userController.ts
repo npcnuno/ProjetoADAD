@@ -2,21 +2,23 @@ import { Router, Request, Response } from 'express';
 import { DatabaseService } from '../services/databaseService';
 import { ResponseHandler, Pagination, PaginationQuery } from '../middleware/responseHandler';
 import { User, UserResponse, UserMovie, UserDocument } from '../models/user';
-import { Collection, Db, Int32 } from 'mongodb';
+import {  Db, Int32, MongoClient, MongoDBCollectionNamespace } from 'mongodb';
 import { MovieController } from './movieController';
 
 export class UserController {
   public router: Router;
   private userService: DatabaseService;
-  private movieColletion: Collection;
+  private db: Db;
+  private mongo: MongoClient
 
 
 
-  constructor(collection: any, movieColletion: Collection) {
+  constructor(collection: any, db: Db, mongo: MongoClient) {
     this.router = Router();
     this.userService = new DatabaseService(collection);
     this.initializeRoutes();
-    this.movieColletion = movieColletion
+    this.db = db
+    this.mongo = mongo
   }
 
   private initializeRoutes() {
@@ -250,6 +252,7 @@ export class UserController {
 
   private async addReview(req: Request, res: Response) {
     try {
+            const session = await this.mongo.startSession(); // Or your client's startSession method
       const userId = parseInt(req.params.id);
       const eventId = parseInt(req.params.event_id);
       const { rating } = req.body;
@@ -281,6 +284,7 @@ export class UserController {
         );
       }
 
+          session.startTransaction();
       // Add the review to the user's movies array
       const newUserMovie = {
         movieid: new Int32(eventId),
@@ -311,26 +315,47 @@ export class UserController {
         );
       }
 
-     const movieResult = await this.movieColletion.updateOne(
+     const movieResult = await this.db.collection('movies') .updateOne(
         { _id: new Int32(eventId) },
         { $inc: { reviewsCount: 1 },
         $push: {reviews: newMovieReview}},
       );
 
 
-      if(movieResult.acknowledged)
-      res.status(201).json(
-        ResponseHandler.success(
-          {
-            userId,
-            eventId,
-            rating,
-            timestamp: newUserMovie.timestamp,
-            date: newUserMovie.date
-          },
-          'Review added successfully to user'
-        )
-      );
+      // --- Operation 1: Update the User ---
+    const userUpdateResult = await this.userService.findOneAndUpdate(
+      { _id: new Int32(userId) },
+      {
+        $push: { movies: newUserMovie }
+      },
+      { 
+        returnDocument: 'after',
+      }
+    );
+
+    if (!userUpdateResult) {
+      await session.abortTransaction(); // Rollback
+      return res.status(404).json(ResponseHandler.error('NOT_FOUND', 'User not found'));
+    }
+
+    // --- Operation 2: Update the Movie ---
+    const movieUpdateResult = await this.db.collection("movies").updateOne(
+      { _id: new Int32(eventId) },
+      { 
+        $inc: { reviewsCount: 1 },
+        $push: { reviews: newMovieReview } // This adds the user's review to the movie
+      },
+      { session } // Pass the session to this operation too
+    );
+
+      // 3. If both updates were successful, commit the transaction
+    await session.commitTransaction();
+    
+    // 4. Send a success response
+    return res.status(200).json(
+      ResponseHandler.success('Review added successfully')
+    );
+
     } catch (error: any) {
       console.error('Error adding review:', error);
       res.status(500).json(

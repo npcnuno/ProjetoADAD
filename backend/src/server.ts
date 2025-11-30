@@ -79,7 +79,7 @@ let userController: UserController;
 
 async function initializeControllers() {
   movieController = new MovieController(db.collection('movies'));
-  userController = new UserController(db.collection('users'), db.collection("movies"));
+  userController = new UserController(db.collection('users'), db, client);
 
   // Mount routes
   app.use('/api/v1/movies', movieController.router);

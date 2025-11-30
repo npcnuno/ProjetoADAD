@@ -137,7 +137,9 @@ class MovieController {
                     title: movie.title,
                     genres: movie.genres,
                     year: movie.year,
-                    averageScore: Math.round(averageScore * 100) / 100
+                    averageScore: Math.round(averageScore * 100) / 100,
+                    reviews: movie.reviews,
+                    reviewsCount: movie.reviewsCount,
                 };
                 res.json(responseHandler_1.ResponseHandler.success(response, 'Movie retrieved successfully'));
             }

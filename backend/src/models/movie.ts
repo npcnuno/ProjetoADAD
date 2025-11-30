@@ -22,4 +22,6 @@ export interface MovieResponse {
   genres: string[];
   year: number;
   averageScore?: number;
+  reviewsCount?: number;
+  reviews?: Review[];
 }
