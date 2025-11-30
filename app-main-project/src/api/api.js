@@ -31,6 +31,10 @@ const api = {
     axios.get(`${API_URL}movies/ratings/desc`, { 
       params: { page, limit }
     }),
+  getMoviesByRatingsAsc: (page = 1, limit = 10) => 
+    axios.get(`${API_URL}movies/ratings/asc`, { 
+      params: { page, limit }
+    }),
   getStarMovies: () => 
     axios.get(`${API_URL}movies/star`),
   getMoviesByYear: (year, page = 1, limit = 10) => 

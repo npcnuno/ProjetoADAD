@@ -40,15 +40,6 @@ function MovieCard({ _id, title, year, genres, onDelete }) {
           </Button>
           <div className="d-flex gap-2">
             <Button 
-              href={`/movie/edit/${_id}`} 
-              variant="outline-secondary" 
-              size="sm" 
-              className="flex-fill d-flex align-items-center justify-content-center"
-            >
-              <i className="bi bi-pencil me-1"></i>
-              Edit
-            </Button>
-            <Button 
               variant="outline-danger" 
               size="sm" 
               className="flex-fill d-flex align-items-center justify-content-center"
