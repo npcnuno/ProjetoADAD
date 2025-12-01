@@ -1,5 +1,5 @@
 // hooks/useMoviesData.js
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
 
@@ -8,7 +8,6 @@ const RATING_OPTIONS = ["Default", "Highest First", "Lowest First"];
 
 export const useMoviesData = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  
   const getSearch = () => searchParams.get('search') || '';
   const getGenre = () => searchParams.get('genre') || 'All';
   const getYear = () => searchParams.get('year') || '';
@@ -17,7 +16,7 @@ export const useMoviesData = () => {
   const getLimit = () => Number(searchParams.get('limit')) || 10;
 
   const [movies, setMovies] = useState([]);
-  const [filteredMovies, setFilteredMovies] = useState(null); // Used for client-side pagination
+  const [filteredMovies, setFilteredMovies] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalMovies, setTotalMovies] = useState(0);
@@ -26,10 +25,10 @@ export const useMoviesData = () => {
   const [searchError, setSearchError] = useState('');
   const searchTimeoutRef = useRef(null);
 
-  // This key is a stable string representation of the filters.
   const filterKey = `${getSearch()}_${getGenre()}_${getYear()}_${getRatingSort()}`;
 
-  const triggerSearch = useCallback(() => {
+  const sortby="reviewsCount"
+  const triggerSearch = () => {
     const trimmedSearch = searchInputValue.trim();
     
     if (trimmedSearch && trimmedSearch.length < 2) {
@@ -47,73 +46,92 @@ export const useMoviesData = () => {
     }
     newParams.delete('page');
     setSearchParams(newParams);
-  }, [searchInputValue, searchParams, setSearchParams]);
+  };
 
-  // *** THE KEY FIX IS HERE ***
-  // This effect determines the mode (client or server).
-  // It only needs to re-run when the filterKey changes.
   useEffect(() => {
     const count = () => {
       let c = 0;
-      // We only count primary filters, NOT the sort filter.
-      // Sorting should be handled by the server and not trigger client-side mode.
       if (getSearch()) c++;
       if (getGenre() !== 'All') c++;
       if (getYear()) c++;
+      if (getRatingSort() !== 'Default') c++;
       return c;
     };
     
-    // Use client-side mode only if there is more than one primary filter.
     const isClient = count() > 1;
     setMode(isClient ? 'client' : 'server');
-  }, [filterKey]); // Only depends on the derived filterKey
+  }, [filterKey]);
 
-  // Client-side data fetching effect
   useEffect(() => {
     if (mode === 'client') {
       (async () => {
         setLoading(true);
         try {
+          let finalResults = [];
+          const fetchPromises = [];
           const search = getSearch();
           const genre = getGenre();
           const year = getYear();
           const ratingSort = getRatingSort();
-          
-          const sortBy = "reviewsCount"; 
-          let sortOrder = null;
-          if (ratingSort === 'Highest First') sortOrder = 'desc';
-          else if (ratingSort === 'Lowest First') sortOrder = 'asc';
 
-          const fetchAllPages = async (apiCall, ...initialArgs) => {
+          const fetchAllPages = async (apiCall, args) => {
             let allResults = [];
             let currentPage = 1;
             const batchLimit = 100;
+            let total = 0;
             let response;
             do {
-              const callArgs = [...initialArgs, currentPage, batchLimit, sortBy, sortOrder];
-              response = await apiCall(...callArgs);
+              response = await apiCall(...args, currentPage, batchLimit);
               allResults = [...allResults, ...response.data.data];
+              total = response.data.pagination.total;
               currentPage++;
-            } while (response.data.pagination && allResults.length < response.data.pagination.total);
+            } while (allResults.length < total);
             return allResults;
           };
 
-          const fetchPromises = [];
-          if (search) fetchPromises.push(fetchAllPages(api.searchMovies, search));
-          if (genre !== 'All') fetchPromises.push(fetchAllPages(api.getMoviesByGenre, genre));
-          if (year) fetchPromises.push(fetchAllPages(api.getMoviesByYear, year));
-          fetchPromises.push(fetchAllPages(api.getMovies));
+          // Convert rating sort to API parameter
+          let sortParam = null;
+          if (ratingSort === 'Highest First') {
+            sortParam = 'desc';
+          } else if (ratingSort === 'Lowest First') {
+            sortParam = 'asc';
+          }
+
+          // Always start with getAllMovies with the appropriate sort parameter
+          fetchPromises.push(fetchAllPages(api.getMovies, [sortby, sortParam]));
+          
+          // Add other filter API calls
+          if (search) {
+            fetchPromises.push(fetchAllPages(api.searchMovies, [search, sortby, sortParam]));
+          }
+          if (genre !== 'All') {
+            fetchPromises.push(fetchAllPages(api.getMoviesByGenre, [genre,sortby, sortParam ]));
+          }
+          if (year) {
+            fetchPromises.push(fetchAllPages(api.getMoviesByYear, [year, sortby, sortParam]));
+          }
 
           const results = await Promise.all(fetchPromises);
 
-          let finalResults = results[0] || [];
-          for (let i = 1; i < results.length; i++) {
-            const currentResultIds = new Set(results[i].map(movie => movie._id));
-            finalResults = finalResults.filter(movie => currentResultIds.has(movie._id));
+          if (results.length > 0) {
+            // Start with the first set of results (which is the sorted or unsorted movies)
+            finalResults = results[0];
+            
+            // Iterate through the remaining result sets and filter down
+            for (let i = 1; i < results.length; i++) {
+              const currentResultIds = new Set(results[i].map(movie => movie._id));
+              finalResults = finalResults.filter(movie => currentResultIds.has(movie._id));
+            }
+            
+            // Ensure uniqueness by creating a map of movies by ID
+            const uniqueMoviesMap = new Map();
+            finalResults.forEach(movie => {
+              uniqueMoviesMap.set(movie._id, movie);
+            });
+            
+            // Convert back to array
+            finalResults = Array.from(uniqueMoviesMap.values());
           }
-          
-          const uniqueMoviesMap = new Map(finalResults.map(movie => [movie._id, movie]));
-          finalResults = Array.from(uniqueMoviesMap.values());
           
           setFilteredMovies(finalResults);
           setTotalMovies(finalResults.length);
@@ -128,7 +146,6 @@ export const useMoviesData = () => {
     }
   }, [mode, filterKey]);
 
-  // Server-side data fetching effect
   useEffect(() => {
     if (mode === 'server') {
       (async () => {
@@ -140,25 +157,35 @@ export const useMoviesData = () => {
           const genre = getGenre();
           const year = getYear();
           const ratingSort = getRatingSort();
-          
-          const sortBy = "reviewsCount";
-          let sortOrder = null;
-          if (ratingSort === 'Highest First') sortOrder = 'desc';
-          else if (ratingSort === 'Lowest First') sortOrder = 'asc';
-          
           let response;
           
-          if (search) {
-            response = await api.searchMovies(search, page, limit, sortBy, sortOrder);
-          } else if (genre !== 'All') {
-            response = await api.getMoviesByGenre(genre, page, limit, sortBy, sortOrder);
-          } else if (year) {
-            response = await api.getMoviesByYear(year, page, limit, sortBy, sortOrder);
-          } else {
-            response = await api.getMovies(page, limit, sortBy, sortOrder);
+          // Convert rating sort to API parameter
+          let sortParam = null;
+          if (ratingSort === 'Highest First') {
+            sortParam = 'desc';
+          } else if (ratingSort === 'Lowest First') {
+            sortParam = 'asc';
           }
           
-          const uniqueMoviesMap = new Map(response.data.data.map(movie => [movie._id, movie]));
+          
+          // If rating sort is active, use getAllMovies with the sort parameter
+          if (ratingSort !== 'Default') {
+            response = await api.getMovies(page, limit, sortby,sortParam);
+          } else if (search) {
+            response = await api.searchMovies(search, page, limit, sortby, sortParam);
+          } else if (genre !== 'All') {
+            response = await api.getMoviesByGenre(genre, page, limit, sortby,sortParam);
+          } else if (year) {
+            response = await api.getMoviesByYear(year, page, limit, sortby,sortParam);
+          } else {
+            response = await api.getMovies(page, limit, sortby,sortParam);
+          }
+          
+          // Ensure uniqueness in server-side results as well
+          const uniqueMoviesMap = new Map();
+          response.data.data.forEach(movie => {
+            uniqueMoviesMap.set(movie._id, movie);
+          });
           const uniqueMovies = Array.from(uniqueMoviesMap.values());
           
           setMovies(uniqueMovies);
@@ -174,7 +201,6 @@ export const useMoviesData = () => {
     }
   }, [searchParams, mode]);
 
-  // Client-side pagination effect
   useEffect(() => {
     if (mode === 'client' && filteredMovies) {
       const page = getPage();
@@ -184,7 +210,6 @@ export const useMoviesData = () => {
     }
   }, [searchParams, mode, filteredMovies]);
 
-  // Search timeout effect
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -199,7 +224,7 @@ export const useMoviesData = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchInputValue, triggerSearch]);
+  }, [searchInputValue]);
 
   const handleDeleteMovie = async (movieId) => {
     if (window.confirm("Are you sure you want to delete this movie?")) {
@@ -208,7 +233,6 @@ export const useMoviesData = () => {
         if (mode === 'client') {
           setFilteredMovies(null); 
         }
-        clearFilters()
       } catch (err) {
         setError("Failed to delete movie. Please try again.");
         console.error('Error deleting movie:', err);
@@ -275,6 +299,7 @@ export const useMoviesData = () => {
   const hasActiveFilters = searchParams.toString() !== '';
 
   return {
+    // State
     movies,
     loading,
     error,
@@ -282,13 +307,17 @@ export const useMoviesData = () => {
     searchError,
     hasActiveFilters,
     totalPages,
-    totalMovies,
+    
+    // Getters
     getSearch,
     getGenre,
     getYear,
     getRatingSort,
     getPage,
     getLimit,
+
+    
+    // Actions
     setSearchInputValue,
     setSearchError,
     handleDeleteMovie,
@@ -299,6 +328,8 @@ export const useMoviesData = () => {
     handleItemsPerPageChange,
     clearFilters,
     triggerSearch,
+    
+    // Constants
     GENRE_OPTIONS,
     RATING_OPTIONS
   };
