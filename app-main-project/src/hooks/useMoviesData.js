@@ -233,6 +233,7 @@ export const useMoviesData = () => {
         if (mode === 'client') {
           setFilteredMovies(null); 
         }
+        clearFilters()
       } catch (err) {
         setError("Failed to delete movie. Please try again.");
         console.error('Error deleting movie:', err);
